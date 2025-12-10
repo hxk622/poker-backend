@@ -1,179 +1,213 @@
-# 德州扑克后端服务
+# Texas Hold'em Poker Backend Service
 
-这是一个基于 Node.js 和 TypeScript 开发的德州扑克游戏后端服务，使用 Express 提供 HTTP API，Socket.IO 实现实时通信功能。
+This is a Texas Hold'em poker game backend service developed with Node.js and TypeScript, using Express for HTTP APIs and Socket.IO for real-time communication.
 
-## 技术栈
+## Technology Stack
 
-- **语言**: TypeScript
-- **框架**: Express.js
-- **实时通信**: Socket.IO
-- **数据库**: PostgreSQL
-- **缓存**: Redis
-- **开发工具**: ts-node-dev
+- **Language**: TypeScript
+- **Framework**: Express.js
+- **Real-time Communication**: Socket.IO
+- **Database**: PostgreSQL
+- **Caching**: Redis
+- **AI Integration**: Custom AI algorithms
+- **Authentication**: JWT (JSON Web Tokens)
+- **Development Tools**: ts-node-dev
 
-## 功能特性
+## Features
 
-- ✅ HTTP API 服务
-- ✅ WebSocket 实时通信
-- ✅ 健康检查端点
-- ✅ 环境变量配置
-- ✅ CORS 支持
-- ✅ TypeScript 类型安全
+- ✅ HTTP API Services
+- ✅ WebSocket Real-time Communication
+- ✅ Health Check Endpoints
+- ✅ Environment Variable Configuration
+- ✅ CORS Support
+- ✅ TypeScript Type Safety
+- ✅ Complete Texas Hold'em Game Logic
+- ✅ AI-powered Hand Analysis
+- ✅ Pot Splitting System
+- ✅ Comprehensive Logging
+- ✅ Database and Redis Integration
 
-## 快速开始
+## Quick Start
 
-### 环境要求
+### Prerequisites
 
 - Node.js >= 16.0.0
 - npm >= 8.0.0
-- PostgreSQL (可选，用于持久化存储)
-- Redis (可选，用于缓存)
+- PostgreSQL (for persistent storage)
+- Redis (for caching)
 
-### 安装依赖
+### Installation
 
 ```bash
 npm install
 ```
 
-### 配置环境变量
+### Environment Configuration
 
-复制并修改 `.env` 文件：
+Copy and modify the `.env` file:
 
 ```bash
 cp .env.example .env
 ```
 
-在 `.env` 文件中配置以下参数：
+Configure the following parameters in the `.env` file:
 
 ```env
-# 服务器端口
+# Server Port
 PORT=3000
 
-# PostgreSQL 数据库 (可选)
+# PostgreSQL Database
 DB_HOST=localhost
 DB_PORT=5432
 DB_USER=postgres
 DB_PASSWORD=your_password_here
 DB_NAME=texas_holdem
 
-# Redis 缓存 (可选)
+# Redis Cache
 REDIS_HOST=localhost
 REDIS_PORT=6379
 REDIS_PASSWORD=
+
+# JWT Configuration
+JWT_SECRET=your_jwt_secret_key
+JWT_EXPIRES_IN=7d
 ```
 
-### 运行项目
+### Running the Application
 
-#### 开发模式
+#### Development Mode
 
 ```bash
 npm run dev
 ```
 
-开发服务器将在 `http://localhost:3000` 启动，并支持热重载。
+The development server will start at `http://localhost:3000` with hot reload support.
 
-#### 生产模式
+#### Production Mode
 
 ```bash
-# 先编译 TypeScript
+# First compile TypeScript
 npm run build
 
-# 然后运行生产服务器
+# Then start the production server
 npm run start
 ```
 
-## 项目结构
+## Project Structure
 
 ```
 ├── src/
-│   ├── index.ts          # 主入口文件
-│   ├── services/         # 业务逻辑服务
-│   └── types/            # TypeScript 类型定义
-├── dist/                 # 编译后的 JavaScript 文件
-├── sql/                  # 数据库脚本
-├── .env                  # 环境变量配置
-├── package.json          # 项目依赖配置
-├── tsconfig.json         # TypeScript 配置
-└── README.md             # 项目说明文档
+│   ├── index.ts                  # Main entry file
+│   ├── routes/                   # API route definitions
+│   ├── services/                 # Business logic services
+│   │   ├── aiService.ts          # AI analysis services
+│   │   ├── gameService.ts        # Core game logic
+│   │   ├── loggerService.ts      # Logging system
+│   │   └── websocketService.ts   # Real-time communication
+│   └── types/                    # TypeScript type definitions
+├── logs/                         # Application log files
+├── package.json                  # Project dependencies
+├── tsconfig.json                 # TypeScript configuration
+└── README.md                     # Project documentation
 ```
 
-## API 文档
+## API Documentation
 
 ### HTTP API
 
-#### 健康检查
+#### Health Check
 
 ```
 GET /ping
 ```
 
-响应示例：
+Response Example:
 
 ```json
 {
-  "message": "Poker后端服务运行正常！",
+  "message": "Poker backend service is running!",
   "timestamp": "2025-12-09T08:50:46.169Z"
 }
 ```
 
-### WebSocket 事件
+#### Game APIs
 
-#### 连接事件
+- `POST /api/games/start` - Start a new game session
+- `POST /api/games/action` - Execute a game action (fold, call, raise)
+- `GET /api/games/status/:id` - Get current game status
+- `GET /api/games/history` - Get game history
+
+### WebSocket Events
+
+#### Connection
 
 ```
 Event: connection
 ```
 
-当客户端连接成功时触发。
+Triggered when a client successfully connects.
 
-#### 回显测试
-
-```
-Event: echo
-Data: { any data }
-```
-
-服务器将返回：
+#### Game Events
 
 ```
-Event: echo_response
-Data: {
-  "original": { any data },
-  "server": "已收到",
-  "yourSocketId": "socket-id"
-}
+Event: game:start
+Event: game:action
+Event: game:status
+Event: game:end
 ```
 
-## 开发指南
+## Development Guidelines
 
-### 代码规范
+### Code Standards
 
-- 使用 TypeScript 编写所有代码
-- 遵循 ESLint 代码规范 (可自行配置)
-- 提交代码前运行 `npm run build` 确保编译通过
+- Write all code in TypeScript
+- Follow consistent naming conventions
+- Use async/await for asynchronous operations
+- Add appropriate error handling
+- Write meaningful comments
 
-### 开发流程
+### Development Workflow
 
-1. 拉取代码
-2. 安装依赖
-3. 配置环境变量
-4. 运行开发服务器
-5. 编写代码
-6. 测试功能
-7. 提交代码
+1. Clone the repository
+2. Install dependencies
+3. Configure environment variables
+4. Start the development server
+5. Implement features or fix bugs
+6. Test thoroughly
+7. Commit changes
 
-## 生产部署
+## Production Deployment
 
-1. 确保所有依赖已安装
-2. 配置生产环境变量
-3. 编译 TypeScript 代码
-4. 启动生产服务器
-5. 配置反向代理 (如 Nginx)
+1. Ensure all dependencies are installed
+2. Configure production environment variables
+3. Compile TypeScript code
+4. Start the production server
+5. Set up a reverse proxy (e.g., Nginx)
+6. Configure SSL/TLS for secure connections
+7. Set up monitoring and logging
 
-## 许可证
+## License
 
-ISC
+MIT License
 
-## 联系方式
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-如有问题或建议，请联系项目维护者。
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+## Contact
+
+For questions or suggestions, please contact the project maintainers.

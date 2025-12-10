@@ -841,21 +841,182 @@ export class AIService {
    * @param cards 所有可用牌（手牌+公共牌）
    */
   private evaluateHand(cards: Card[]): string {
-    // TODO: 实现完整的牌型评估算法
-    // 简单实现：随机返回一个牌型用于测试
-    const handTypes: string[] = [
-      'high_card', 'pair', 'two_pair', 'three_of_a_kind', 
-      'straight', 'flush', 'full_house', 'four_of_a_kind', 
-      'straight_flush', 'royal_flush'
-    ];
-    
-    // 基于牌数量返回合理的牌型
+    // 确保至少有5张牌
     if (cards.length < 5) {
       return 'high_card';
     }
     
-    // 随机选择一个牌型（实际应用中应该实现完整的牌型评估）
-    return handTypes[Math.floor(Math.random() * handTypes.length)];
+    // 对牌进行排序（按点数大小，A可以是1或14）
+    const sortedCards = this.sortCardsByRank(cards);
+    
+    // 检查同花顺（包括皇家同花顺）
+    if (this.isFlush(sortedCards) && this.isStraight(sortedCards)) {
+      // 检查是否为皇家同花顺
+      const highestCard = sortedCards[sortedCards.length - 1];
+      if (highestCard.rank === 'A' && sortedCards[sortedCards.length - 2].rank === 'K') {
+        return 'royal_flush';
+      }
+      return 'straight_flush';
+    }
+    
+    // 检查四条
+    if (this.isFourOfAKind(sortedCards)) {
+      return 'four_of_a_kind';
+    }
+    
+    // 检查葫芦
+    if (this.isFullHouse(sortedCards)) {
+      return 'full_house';
+    }
+    
+    // 检查同花
+    if (this.isFlush(sortedCards)) {
+      return 'flush';
+    }
+    
+    // 检查顺子
+    if (this.isStraight(sortedCards)) {
+      return 'straight';
+    }
+    
+    // 检查三条
+    if (this.isThreeOfAKind(sortedCards)) {
+      return 'three_of_a_kind';
+    }
+    
+    // 检查两对
+    if (this.isTwoPair(sortedCards)) {
+      return 'two_pair';
+    }
+    
+    // 检查一对
+    if (this.isPair(sortedCards)) {
+      return 'pair';
+    }
+    
+    // 否则为高牌
+    return 'high_card';
+  }
+
+  /**
+   * 按点数大小排序牌
+   */
+  private sortCardsByRank(cards: Card[]): Card[] {
+    const rankValues: Record<string, number> = {
+      '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8,
+      '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14
+    };
+    
+    return [...cards].sort((a, b) => {
+      return rankValues[a.rank] - rankValues[b.rank];
+    });
+  }
+
+  /**
+   * 检查是否为同花
+   */
+  private isFlush(cards: Card[]): boolean {
+    const suits = new Set(cards.map(card => card.suit));
+    return suits.size === 1;
+  }
+
+  /**
+   * 检查是否为顺子
+   */
+  private isStraight(cards: Card[]): boolean {
+    const rankValues: Record<string, number> = {
+      '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8,
+      '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14
+    };
+    
+    // 获取唯一的点数值并排序
+    const uniqueValues = Array.from(new Set(cards.map(card => rankValues[card.rank]))).sort((a, b) => a - b);
+    
+    // 检查是否有连续的5个点数
+    for (let i = 0; i <= uniqueValues.length - 5; i++) {
+      let isSequence = true;
+      for (let j = 0; j < 4; j++) {
+        if (uniqueValues[i + j + 1] - uniqueValues[i + j] !== 1) {
+          isSequence = false;
+          break;
+        }
+      }
+      if (isSequence) {
+        return true;
+      }
+    }
+    
+    // 检查特殊情况：A-2-3-4-5的顺子
+    const hasAce = uniqueValues.includes(14);
+    const hasTwo = uniqueValues.includes(2);
+    const hasThree = uniqueValues.includes(3);
+    const hasFour = uniqueValues.includes(4);
+    const hasFive = uniqueValues.includes(5);
+    
+    if (hasAce && hasTwo && hasThree && hasFour && hasFive) {
+      return true;
+    }
+    
+    return false;
+  }
+
+  /**
+   * 检查是否为四条
+   */
+  private isFourOfAKind(cards: Card[]): boolean {
+    const rankCounts = this.getRankCounts(cards);
+    return Object.values(rankCounts).some(count => count === 4);
+  }
+
+  /**
+   * 检查是否为葫芦
+   */
+  private isFullHouse(cards: Card[]): boolean {
+    const rankCounts = this.getRankCounts(cards);
+    const counts = Object.values(rankCounts).sort((a, b) => b - a);
+    return counts[0] === 3 && counts[1] === 2;
+  }
+
+  /**
+   * 检查是否为三条
+   */
+  private isThreeOfAKind(cards: Card[]): boolean {
+    const rankCounts = this.getRankCounts(cards);
+    return Object.values(rankCounts).some(count => count === 3);
+  }
+
+  /**
+   * 检查是否为两对
+   */
+  private isTwoPair(cards: Card[]): boolean {
+    const rankCounts = this.getRankCounts(cards);
+    const pairCount = Object.values(rankCounts).filter(count => count === 2).length;
+    return pairCount === 2;
+  }
+
+  /**
+   * 检查是否为一对
+   */
+  private isPair(cards: Card[]): boolean {
+    const rankCounts = this.getRankCounts(cards);
+    return Object.values(rankCounts).some(count => count === 2);
+  }
+
+  /**
+   * 获取每个点数出现的次数
+   */
+  private getRankCounts(cards: Card[]): Record<string, number> {
+    const counts: Record<string, number> = {};
+    
+    for (const card of cards) {
+      if (counts[card.rank]) {
+        counts[card.rank]++;
+      } else {
+        counts[card.rank] = 1;
+      }
+    }
+    
+    return counts;
   }
 }
 
