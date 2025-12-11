@@ -2,6 +2,7 @@
 export interface User {
   id: string;
   username: string;
+  password: string; // 密码哈希
   email?: string;
   phone?: string;
   avatar?: string;
@@ -22,6 +23,7 @@ export interface RegisterUserInput {
 export interface LoginUserInput {
   email?: string;
   phone?: string;
+  username?: string;
   password: string;
 }
 
@@ -120,6 +122,32 @@ export interface AIAnalysis {
   created_at: Date;
 }
 
+// 实时AI分析开关配置
+export interface RealTimeAnalysisConfig {
+  enabled: boolean;
+  analysisInterval: number; // 分析间隔（毫秒）
+  style: 'gto' | 'professional';
+  autoAnalyzeOnAction: boolean; // 游戏动作时自动分析
+}
+
+// WebSocket AI分析事件类型
+export interface AIAnalysisEvent extends WebSocketEvent {
+  type: 'ai_analysis';
+  data: {
+    session_id: string;
+    analysis: AIAnalysis;
+    suggestion: AISuggestion;
+  };
+}
+
+export interface RealTimeAnalysisToggleEvent extends WebSocketEvent {
+  type: 'real_time_analysis_toggle';
+  data: {
+    enabled: boolean;
+    style?: 'gto' | 'professional';
+  };
+}
+
 export interface AISuggestion {
   id: string;
   session_id: string;
@@ -139,8 +167,31 @@ export interface AIActionRecommendation {
   confidence: number;
 }
 
+// 聊天消息相关类型
+export interface ChatMessage {
+  id: string;
+  userId: string;
+  username?: string;
+  message: string;
+  roomId: string;
+  timestamp: string;
+  isPrivate?: boolean;
+  recipientId?: string;
+}
+
 // WebSocket事件相关类型
 export interface WebSocketEvent {
   type: string;
   data: any;
+}
+
+// 特定WebSocket事件类型
+export interface ChatMessageEvent extends WebSocketEvent {
+  type: 'chat_message';
+  data: ChatMessage;
+}
+
+export interface ChatHistoryEvent extends WebSocketEvent {
+  type: 'chat_history';
+  data: ChatMessage[];
 }

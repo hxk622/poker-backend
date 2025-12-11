@@ -2,6 +2,8 @@ import express from 'express';
 import http from 'http';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import swaggerUi from 'swagger-ui-express';
+import swaggerSpec from './config/swagger';
 
 // 加载环境变量
 dotenv.config();
@@ -25,6 +27,9 @@ app.get('/ping', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+
+// Swagger API文档
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // API路由
 // 导入用户、房间、游戏等API路由
