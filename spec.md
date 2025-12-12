@@ -83,6 +83,13 @@
 - 历史牌局复盘
 - 错误分析和改进建议
 
+#### 2.3.3 AI模型训练功能
+- 支持玩家上传训练数据
+- 批量训练数据导入
+- 个性化AI模型训练
+- 训练结果反馈和指标展示
+- 模型版本管理
+
 ### 2.4 社交功能
 
 #### 2.4.1 好友系统
@@ -197,6 +204,21 @@
 - explanation: TEXT
 - created_at: TIMESTAMP
 
+#### 3.2.9 AI训练数据表 (ai_training_data)
+- id: UUID
+- user_id: UUID
+- session_id: UUID
+- hand: VARCHAR(10)
+- community_cards: VARCHAR(20)
+- pot_size: BIGINT
+- current_bet: BIGINT
+- stack_size: BIGINT
+- action: VARCHAR(20)
+- action_amount: BIGINT
+- result: VARCHAR(20)
+- game_phase: ENUM('preflop', 'flop', 'turn', 'river')
+- created_at: TIMESTAMP
+
 ### 3.3 API 接口规范
 
 #### 3.3.1 用户 API
@@ -227,6 +249,7 @@
 
 - `POST /api/ai/analyze` - AI分析牌局
 - `GET /api/ai/recommendations` - 获取AI建议
+- `POST /api/ai/train` - AI模型训练
 
 #### 3.3.5 健康检查 API
 
@@ -315,6 +338,8 @@
 - **AIAnalysis**: 包含牌力强度、底池赔率、推荐行动、置信度等
 - **AISuggestion**: 包含建议风格、推荐行动、推荐金额、置信度、解释等
 - **AIActionRecommendation**: 包含具体行动、金额、推理、置信度等
+- **AITrainingData**: 包含用户ID、会话ID、手牌、公共牌、底池大小、当前下注、筹码量、动作、结果等训练数据
+- **AITrainingResult**: 包含训练状态、训练ID、训练数据量、准确率、损失值、训练时间等训练结果
 
 ## 5. 实现细节
 

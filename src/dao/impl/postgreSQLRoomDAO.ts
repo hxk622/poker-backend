@@ -7,11 +7,12 @@ export class PostgreSQLRoomDAO implements RoomDAO {
   private static readonly TABLE_NAME = 'game_rooms';
   private static readonly CACHE_KEY_PREFIX = 'room:';
 
+  // 这个方法与接口定义不匹配，应该由createRoom方法代替
   async create(entity: Omit<GameRoom, 'id' | 'created_at' | 'updated_at'>): Promise<GameRoom> {
     const result = await pool.query(
-      `INSERT INTO ${PostgreSQLRoomDAO.TABLE_NAME} (name, description, max_players, min_bet, max_bet, table_size, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [entity.name, entity.description, entity.max_players, entity.min_bet, entity.max_bet, entity.table_size, entity.created_by]
+      `INSERT INTO ${PostgreSQLRoomDAO.TABLE_NAME} (name, room_type, small_blind, big_blind, max_players, current_players, game_status, owner_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [entity.name, entity.room_type, entity.small_blind, entity.big_blind, entity.max_players, entity.current_players || 0, entity.game_status || 'waiting', entity.owner_id]
     );
 
     const room = result.rows[0];
@@ -183,7 +184,74 @@ export class PostgreSQLRoomDAO implements RoomDAO {
   }
 
   async updateStatus(roomId: string, status: 'waiting' | 'playing' | 'finished'): Promise<GameRoom | null> {
-    return this.update(roomId, { status });
+    return this.update(roomId, { game_status: status });
+  }
+
+  // 加入房间
+  async joinRoom(roomId: string, userId: string): Promise<boolean> {
+    try {
+      // 检查房间是否存在且未满
+      const room = await this.getById(roomId);
+      if (!room) {
+        return false;
+      }
+
+      if (room.current_players >= room.max_players) {
+        return false;
+      }
+
+      // 检查用户是否已经在房间中
+      const playerResult = await pool.query(
+        `SELECT * FROM session_players WHERE room_id = $1 AND user_id = $2`,
+        [roomId, userId]
+      );
+
+      if (playerResult.rows.length > 0) {
+        return false;
+      }
+
+      // 将用户加入房间 - 使用默认筹码量10000
+      await pool.query(
+        `INSERT INTO session_players (room_id, user_id, chips, status)
+         VALUES ($1, $2, $3, $4)`,
+        [roomId, userId, 10000, 'active']
+      );
+
+      // 更新房间当前玩家数量
+      await this.updatePlayerCount(roomId, 1);
+      return true;
+    } catch (error) {
+      console.error('加入房间失败:', error);
+      return false;
+    }
+  }
+
+  // 离开房间
+  async leaveRoom(roomId: string, userId: string): Promise<boolean> {
+    try {
+      // 检查用户是否在房间中
+      const playerResult = await pool.query(
+        `SELECT * FROM session_players WHERE room_id = $1 AND user_id = $2`,
+        [roomId, userId]
+      );
+
+      if (playerResult.rows.length === 0) {
+        return false;
+      }
+
+      // 移除用户
+      await pool.query(
+        `DELETE FROM session_players WHERE room_id = $1 AND user_id = $2`,
+        [roomId, userId]
+      );
+
+      // 更新房间当前玩家数量
+      await this.updatePlayerCount(roomId, -1);
+      return true;
+    } catch (error) {
+      console.error('离开房间失败:', error);
+      return false;
+    }
   }
 
   // 清除房间列表相关缓存

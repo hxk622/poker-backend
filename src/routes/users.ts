@@ -72,13 +72,9 @@ declare global {
  *         description: 注册失败
  */
 router.post('/register', async (req, res) => {
-  try {
-    const input: RegisterUserInput = req.body;
-    const user = await registerUser(input);
-    res.status(201).json({ message: '用户注册成功', user });
-  } catch (error: any) {
-    res.status(400).json({ error: error.message || '注册失败' });
-  }
+  const input: RegisterUserInput = req.body;
+  const user = await registerUser(input);
+  res.status(201).json({ message: '用户注册成功', user });
 });
 
 /**
@@ -114,13 +110,9 @@ router.post('/register', async (req, res) => {
  *         description: 登录失败
  */
 router.post('/login', async (req, res) => {
-  try {
-    const input: LoginUserInput = req.body;
-    const { user, token } = await loginUser(input);
-    res.status(200).json({ message: '登录成功', user, token });
-  } catch (error: any) {
-    res.status(401).json({ error: error.message || '登录失败' });
-  }
+  const input: LoginUserInput = req.body;
+  const { user, token } = await loginUser(input);
+  res.status(200).json({ message: '登录成功', user, token });
 });
 
 /**
@@ -149,18 +141,14 @@ router.post('/login', async (req, res) => {
  *         description: 用户不存在
  */
 router.get('/profile', authenticateToken, async (req, res) => {
-  try {
-    const userId = req.user!.userId;
-    const user = await getUserById(userId);
-    
-    if (!user) {
-      return res.status(404).json({ error: '用户不存在' });
-    }
-    
-    res.status(200).json({ message: '获取用户资料成功', user });
-  } catch (error: any) {
-    res.status(401).json({ error: error.message || '获取用户资料失败' });
+  const userId = req.user!.userId;
+  const user = await getUserById(userId);
+  
+  if (!user) {
+    return res.status(404).json({ error: '用户不存在' });
   }
+  
+  res.status(200).json({ message: '获取用户资料成功', user });
 });
 
 /**
@@ -200,14 +188,10 @@ router.get('/profile', authenticateToken, async (req, res) => {
  *         description: 未授权
  */
 router.put('/profile', authenticateToken, async (req, res) => {
-  try {
-    const userId = req.user!.userId;
-    const data = req.body;
-    const updatedUser = await updateUserProfile(userId, data);
-    res.status(200).json({ message: '更新用户资料成功', user: updatedUser });
-  } catch (error: any) {
-    res.status(400).json({ error: error.message || '更新用户资料失败' });
-  }
+  const userId = req.user!.userId;
+  const data = req.body;
+  const updatedUser = await updateUserProfile(userId, data);
+  res.status(200).json({ message: '更新用户资料成功', user: updatedUser });
 });
 
 /**
@@ -245,13 +229,9 @@ router.put('/profile', authenticateToken, async (req, res) => {
  *         description: 未授权
  */
 router.get('/stats', authenticateToken, async (req, res) => {
-  try {
-    const userId = req.user!.userId;
-    const stats = await getUserStats(userId);
-    res.status(200).json({ message: '获取用户统计数据成功', stats });
-  } catch (error: any) {
-    res.status(400).json({ error: error.message || '获取用户统计数据失败' });
-  }
+  const userId = req.user!.userId;
+  const stats = await getUserStats(userId);
+  res.status(200).json({ message: '获取用户统计数据成功', stats });
 });
 
 export default router;

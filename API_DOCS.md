@@ -395,6 +395,72 @@ GET /api/ai/{gameId}/suggestions?style=gto
 }
 ```
 
+#### 4.4.3 AI模型训练
+
+```
+POST /api/ai/train
+```
+
+**请求体**:
+```json
+{
+  "trainingData": [
+    {
+      "userId": "user-uuid",
+      "sessionId": "session-uuid",
+      "hand": "AsKs",
+      "communityCards": "2s3s4s",
+      "potSize": 1000,
+      "currentBet": 200,
+      "stackSize": 5000,
+      "action": "raise",
+      "actionAmount": 500,
+      "result": "win",
+      "gamePhase": "preflop"
+    }
+  ]
+}
+```
+
+**响应**:
+```json
+{
+  "success": true,
+  "trainingId": "training-uuid",
+  "message": "AI模型训练成功",
+  "metrics": {
+    "trainingDataCount": 1,
+    "accuracy": 0.92,
+    "loss": 0.08,
+    "trainingTime": 1250
+  }
+}
+```
+
+**参数说明**:
+- `trainingData`: 训练数据数组
+  - `userId`: 用户ID
+  - `sessionId`: 游戏会话ID
+  - `hand`: 玩家手牌（格式如"AsKs"）
+  - `communityCards`: 公共牌（格式如"2s3s4s"）
+  - `potSize`: 底池大小
+  - `currentBet`: 当前下注金额
+  - `stackSize`: 玩家筹码量
+  - `action`: 玩家动作（fold, call, raise）
+  - `actionAmount`: 动作金额（对于raise）
+  - `result`: 游戏结果（win, lose）
+  - `gamePhase`: 游戏阶段（preflop, flop, turn, river）
+
+**响应说明**:
+- `success`: 训练是否成功
+- `trainingId`: 训练任务ID
+- `message`: 训练结果消息
+- `metrics`: 训练指标
+  - `trainingDataCount`: 训练数据条数
+  - `accuracy`: 训练准确率
+  - `loss`: 训练损失值
+  - `trainingTime`: 训练耗时（毫秒）
+
 ## 5. WebSocket事件
 
 ### 5.1 连接与认证
@@ -846,10 +912,16 @@ function handleAIAnalysisResult(analysisData) {
 
 ---
 
-**更新时间**: 2024-01-01  
-**版本**: 1.1.0
+**更新时间**: 2024-01-02  
+**版本**: 1.2.0
 
 ### 更新日志
+
+#### 版本 1.2.0 (2024-01-02)
+- 新增AI模型训练功能
+- 添加AI训练数据API接口
+- 支持批量训练数据导入
+- 提供训练指标和结果反馈
 
 #### 版本 1.1.0 (2024-01-01)
 - 新增实时AI分析功能

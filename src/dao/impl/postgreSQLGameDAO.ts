@@ -179,7 +179,7 @@ export class PostgreSQLPlayerSessionDAO implements PlayerSessionDAO {
     // 处理hole_cards的JSON序列化
     const processedEntity = { ...entity };
     if (processedEntity.hole_cards) {
-      processedEntity.hole_cards = JSON.stringify(processedEntity.hole_cards);
+      (processedEntity as any).hole_cards = JSON.stringify(processedEntity.hole_cards);
     }
 
     // 构建更新语句
@@ -456,13 +456,13 @@ export class PostgreSQLCommunityCardsDAO implements CommunityCardsDAO {
     // 处理牌的JSON序列化
     const processedEntity = { ...entity };
     if (processedEntity.flop) {
-      processedEntity.flop = JSON.stringify(processedEntity.flop);
+      (processedEntity as any).flop = JSON.stringify(processedEntity.flop);
     }
     if (processedEntity.turn) {
-      processedEntity.turn = JSON.stringify(processedEntity.turn);
+      (processedEntity as any).turn = JSON.stringify(processedEntity.turn);
     }
     if (processedEntity.river) {
-      processedEntity.river = JSON.stringify(processedEntity.river);
+      (processedEntity as any).river = JSON.stringify(processedEntity.river);
     }
 
     // 构建更新语句

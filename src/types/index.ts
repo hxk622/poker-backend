@@ -1,3 +1,32 @@
+// AI训练相关类型
+export interface AITrainingData {
+  id?: string;
+  userId: string;
+  sessionId: string;
+  hand: Card[];
+  communityCards: Card[];
+  betHistory: GameAction[];
+  potSize: number;
+  currentBet: number;
+  stackSize: number;
+  actualAction: string;
+  result: string;
+  profit: number;
+  created_at?: Date;
+}
+
+export interface AITrainingResult {
+  success: boolean;
+  message: string;
+  trainingId?: string;
+  metrics?: {
+    accuracy: number;
+    precision: number;
+    recall: number;
+    f1Score: number;
+  };
+}
+
 // 用户信息
 export interface User {
   id: string;

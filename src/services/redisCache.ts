@@ -125,4 +125,21 @@ export class RedisCache {
       return -1;
     }
   }
+
+  /**
+   * 根据模式删除缓存
+   * @param pattern 缓存键模式（支持通配符*）
+   */
+  static async deletePattern(pattern: string): Promise<boolean> {
+    try {
+      const keys = await redis.keys(pattern);
+      if (keys.length > 0) {
+        await this.deleteBatch(keys);
+      }
+      return true;
+    } catch (error) {
+      console.error('Redis deletePattern error:', error);
+      return false;
+    }
+  }
 }

@@ -6,6 +6,7 @@ import { postgreSQLPlayerSessionDAO } from '../dao/impl/postgreSQLGameDAO';
 import { postgreSQLActionDAO } from '../dao/impl/postgreSQLGameDAO';
 import { postgreSQLCommunityCardsDAO } from '../dao/impl/postgreSQLGameDAO';
 import { postgreSQLUserDAO } from '../dao/impl/postgreSQLUserDAO';
+import pool from './database';
 
 // 生成标准52张扑克牌
 export const generateDeck = (): Card[] => {
@@ -35,7 +36,12 @@ export const shuffleDeck = (deck: Card[]): Card[] => {
 // 开始新牌局
 export const startNewGame = async (roomId: string): Promise<GameSession> => {
   // 获取房间内的活跃玩家
-  const roomPlayers = await postgreSQLRoomPlayersDAO.getRoomPlayers(roomId);
+  const roomPlayersResult = await pool.query(
+    `SELECT user_id FROM session_players WHERE room_id = $1 AND status = $2`,
+    [roomId, 'active']
+  );
+  
+  const roomPlayers = roomPlayersResult.rows;
   
   if (roomPlayers.length < 2) {
     throw new Error('房间内至少需要2名玩家才能开始游戏');
@@ -100,12 +106,10 @@ export const startNewGame = async (roomId: string): Promise<GameSession> => {
     });
   }
   
-  // 创建社区牌记录
+  // 创建初始社区牌（空）
   await postgreSQLCommunityCardsDAO.create({
     session_id: gameSession.id,
-    flop: [],
-    turn: null,
-    river: null
+    flop: []
   });
   
   // 放置盲注
@@ -129,10 +133,9 @@ const placeBlinds = async (sessionId: string, roomId: string, playerIds: string[
   const bbPlayerId = playerIds[bbIndex];
   
   // 获取玩家当前状态
-  const [sbPlayer, bbPlayer] = await Promise.all([
-    postgreSQLPlayerSessionDAO.getActiveSessionByPlayer(roomId, sbPlayerId),
-    postgreSQLPlayerSessionDAO.getActiveSessionByPlayer(roomId, bbPlayerId)
-  ]);
+  const allPlayers = await postgreSQLPlayerSessionDAO.getPlayersBySession(sessionId);
+  const sbPlayer = allPlayers.find(p => p.player_id === sbPlayerId);
+  const bbPlayer = allPlayers.find(p => p.player_id === bbPlayerId);
   
   if (!sbPlayer || !bbPlayer) {
     throw new Error('无法获取玩家信息');
@@ -161,7 +164,7 @@ const placeBlinds = async (sessionId: string, roomId: string, playerIds: string[
   await postgreSQLActionDAO.create({
     session_id: sessionId,
     player_id: sbPlayerId,
-    action_type: 'small_blind',
+    action_type: 'call',
     amount: smallBlind,
     round: 'preflop'
   });
@@ -169,7 +172,7 @@ const placeBlinds = async (sessionId: string, roomId: string, playerIds: string[
   await postgreSQLActionDAO.create({
     session_id: sessionId,
     player_id: bbPlayerId,
-    action_type: 'big_blind',
+    action_type: 'call',
     amount: bigBlind,
     round: 'preflop'
   });
@@ -355,7 +358,7 @@ export const getGameStatus = async (sessionId: string): Promise<any> => {
   const players = await postgreSQLPlayerSessionDAO.getPlayersBySession(sessionId);
   
   // 获取社区牌
-  const communityCards = await postgreSQLCommunityCardsDAO.getBySessionId(sessionId);
+  const communityCards = await postgreSQLCommunityCardsDAO.getBySession(sessionId);
   
   return {
     session,
@@ -409,20 +412,22 @@ export const executeGameAction = async (sessionId: string, playerId: string, act
   // 4. 更新玩家筹码和底池
   if (action.action_type === 'call' || action.action_type === 'raise' || action.action_type === 'all_in') {
     const amount = action.amount || 0;
+    const totalBet = currentPlayer.chips_in_pot + amount;
+    const newChipsRemaining = currentPlayer.chips_remaining - amount;
     
-    // 更新玩家已下注筹码
-    await postgreSQLPlayerSessionDAO.updateChipsInPot(currentPlayer.id, amount);
+    // 更新玩家筹码
+    await postgreSQLPlayerSessionDAO.updateChips(sessionId, playerId, totalBet, newChipsRemaining);
     
     // 更新底池大小
-    await postgreSQLGameSessionDAO.updatePot(sessionId, amount);
+    await postgreSQLGameSessionDAO.updatePot(sessionId, session.pot + amount);
     
     // 处理全下情况
-    if (action.action_type === 'all_in' || currentPlayer.chips_remaining - amount <= 0) {
-      await postgreSQLPlayerSessionDAO.updateStatus(currentPlayer.id, 'all_in');
+    if (action.action_type === 'all_in' || newChipsRemaining <= 0) {
+      await postgreSQLPlayerSessionDAO.updateStatus(sessionId, playerId, 'all_in');
     }
   } else if (action.action_type === 'fold') {
     // 更新玩家状态为已弃牌
-    await postgreSQLPlayerSessionDAO.updateStatus(currentPlayer.id, 'folded');
+    await postgreSQLPlayerSessionDAO.updateStatus(sessionId, playerId, 'folded');
   }
   
   // 5. 检查当前轮次是否结束
@@ -712,10 +717,11 @@ export const determineWinner = async (sessionId: string): Promise<any> => {
   if (activePlayers.length === 1) {
     const winner = activePlayers[0];
     // 将所有底池筹码分配给获胜者
-    await postgreSQLPlayerSessionDAO.updateChips(winner.id, session.pot);
+    const totalChips = winner.chips_in_pot + session.pot;
+    await postgreSQLPlayerSessionDAO.updateChips(sessionId, winner.player_id, totalChips, 0);
     
     // 更新牌局状态为已结束
-    await postgreSQLGameSessionDAO.updateStatus(sessionId, 'completed');
+    await postgreSQLGameSessionDAO.updateStatus(sessionId, 'finished');
     
     // 记录获胜信息
     const winnerInfo = {
@@ -738,13 +744,13 @@ export const determineWinner = async (sessionId: string): Promise<any> => {
         throw new Error(`玩家牌局信息不存在: ${player.id}`);
       }
       
-      const { card_1, card_2 } = playerSession;
+      const { hole_cards } = playerSession;
       
       // 计算手牌强度
-      const handStrength = evaluateHandStrength([card_1, card_2], communityCards);
+      const handStrength = evaluateHandStrength(hole_cards, communityCards);
       
       // 定义所有可用牌
-      const allCards = [card_1, card_2, ...communityCards];
+      const allCards = [...hole_cards, ...communityCards];
       
       return {
         ...player,
@@ -760,7 +766,8 @@ export const determineWinner = async (sessionId: string): Promise<any> => {
   // 分配筹码
   let totalDistributed = 0;
   for (const winner of winners) {
-    await postgreSQLPlayerSessionDAO.updateChips(winner.player.id, winner.amountWon);
+    const totalChips = winner.player.chips_in_pot + winner.amountWon;
+    await postgreSQLPlayerSessionDAO.updateChips(sessionId, winner.player.player_id, totalChips, 0);
     totalDistributed += winner.amountWon;
   }
   
@@ -770,7 +777,7 @@ export const determineWinner = async (sessionId: string): Promise<any> => {
   }
   
   // 更新牌局状态为已结束
-  await postgreSQLGameSessionDAO.updateStatus(sessionId, 'completed');
+    await postgreSQLGameSessionDAO.updateStatus(sessionId, 'finished');
   
   // 返回获胜信息
   const winnerInfos = winners.map(winner => ({

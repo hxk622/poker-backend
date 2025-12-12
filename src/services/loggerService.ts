@@ -1,4 +1,5 @@
 import winston from 'winston';
+import { ContextManager } from '../utils/contextManager';
 
 // 定义日志级别
 enum LogLevel {
@@ -27,7 +28,7 @@ const logger = winston.createLogger({
   transports: [
     // 错误日志输出到文件
     new winston.transports.File({
-      filename: 'logs/error.log',
+      filename: process.env.LOG_ERROR_FILE || 'logs/error.log',
       level: LogLevel.ERROR,
       maxsize: 5242880, // 5MB
       maxFiles: 5,
@@ -35,7 +36,7 @@ const logger = winston.createLogger({
     }),
     // 所有日志输出到文件
     new winston.transports.File({
-      filename: 'logs/combined.log',
+      filename: process.env.LOG_COMBINED_FILE || 'logs/combined.log',
       maxsize: 5242880, // 5MB
       maxFiles: 5,
       tailable: true
@@ -48,7 +49,17 @@ if (process.env.NODE_ENV !== 'production') {
   logger.add(new winston.transports.Console({
     format: winston.format.combine(
       winston.format.colorize(),
-      winston.format.simple()
+      winston.format.timestamp({
+        format: 'HH:mm:ss'
+      }),
+      winston.format.printf((info) => {
+        const { timestamp, level, message, ...meta } = info;
+        let metaStr = '';
+        if (Object.keys(meta).length > 0) {
+          metaStr = JSON.stringify(meta, null, 2);
+        }
+        return `${timestamp} ${level}: ${message} ${metaStr}`;
+      })
     )
   }));
 }
@@ -65,31 +76,31 @@ if (!fs.existsSync(logsDir)) {
 // 日志服务类
 class LoggerService {
   static error(message: string, meta?: any) {
-    logger.error(message, meta);
+    logger.error(message, this.enrichMeta(meta));
   }
 
   static warn(message: string, meta?: any) {
-    logger.warn(message, meta);
+    logger.warn(message, this.enrichMeta(meta));
   }
 
   static info(message: string, meta?: any) {
-    logger.info(message, meta);
+    logger.info(message, this.enrichMeta(meta));
   }
 
   static http(message: string, meta?: any) {
-    logger.http(message, meta);
+    logger.http(message, this.enrichMeta(meta));
   }
 
   static verbose(message: string, meta?: any) {
-    logger.verbose(message, meta);
+    logger.verbose(message, this.enrichMeta(meta));
   }
 
   static debug(message: string, meta?: any) {
-    logger.debug(message, meta);
+    logger.debug(message, this.enrichMeta(meta));
   }
 
   static silly(message: string, meta?: any) {
-    logger.silly(message, meta);
+    logger.silly(message, this.enrichMeta(meta));
   }
 
   // 游戏特定的日志方法
@@ -99,7 +110,7 @@ class LoggerService {
       playerId,
       data
     };
-    logger.info(`[GAME] ${event}`, meta);
+    logger.info(`[GAME] ${event}`, this.enrichMeta(meta));
   }
 
   static playerAction(action: string, sessionId: string, playerId: string, details?: any) {
@@ -108,7 +119,7 @@ class LoggerService {
       playerId,
       details
     };
-    logger.info(`[PLAYER] ${playerId} ${action}`, meta);
+    logger.info(`[PLAYER] ${playerId} ${action}`, this.enrichMeta(meta));
   }
 
   static errorEvent(error: Error, sessionId?: string, playerId?: string) {
@@ -117,7 +128,25 @@ class LoggerService {
       playerId,
       stack: error.stack
     };
-    logger.error(error.message, meta);
+    logger.error(error.message, this.enrichMeta(meta));
+  }
+
+  // 从上下文管理器获取requestId和sessionId并丰富元数据
+  private static enrichMeta(meta?: any): any {
+    const context = ContextManager.getContext();
+    
+    const enrichedMeta: any = context ? {
+      requestId: context.requestId,
+      sessionId: context.sessionId || meta?.sessionId,
+      userId: context.userId
+    } : {};
+
+    // 如果提供了额外的元数据，将其合并
+    if (meta) {
+      Object.assign(enrichedMeta, meta);
+    }
+
+    return enrichedMeta;
   }
 }
 

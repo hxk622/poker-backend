@@ -1,7 +1,7 @@
 # 德州扑克项目数据库表信息
 
 ## 一、当前数据库中的表
-通过命令行查询到 `texas_holdem` 数据库中有以下7个表：
+通过命令行查询到 `texas_holdem` 数据库中有以下8个表：
 
 ```
    table_name    
@@ -13,6 +13,7 @@
  game_actions
  ai_analyses
  user_stats
+ ai_training_data
 ```
 
 ## 二、通过 pgAdmin 查看表的方法
@@ -72,5 +73,6 @@ SELECT * FROM game_rooms;
 5. **game_actions** - 存储游戏中的动作记录（下注、跟注、弃牌等）
 6. **ai_analyses** - 存储AI分析记录（牌力评估、建议等）
 7. **user_stats** - 存储用户统计信息（胜率、总盈利等）
+8. **ai_training_data** - 存储AI训练数据（用户ID、会话ID、手牌、公共牌、底池大小、当前下注、筹码量、动作、结果等）
 
 您可以随时通过 pgAdmin 或命令行查询这些表的详细信息。

@@ -309,12 +309,29 @@ router.get('/:gameId/suggestions', authenticateToken, async (req, res) => {
 // AI训练
 router.post('/train', authenticateToken, async (req, res) => {
   try {
+    const userId = req.user!.userId;
     const { trainingData } = req.body;
     
-    // TODO: 实现AI训练逻辑
-    res.status(200).json({ message: 'AI训练成功', trainingData });
+    // 验证训练数据格式
+    if (!trainingData || typeof trainingData !== 'object') {
+      return res.status(400).json({ error: '请提供有效的训练数据' });
+    }
+    
+    // 调用AI服务进行训练
+    const trainingResult = await aiService.trainAI({
+      userId,
+      ...trainingData
+    });
+    
+    res.status(200).json({ 
+      message: 'AI模型训练成功', 
+      trainingId: trainingResult.trainingId,
+      metrics: trainingResult.metrics,
+      trainingData
+    });
   } catch (error: any) {
-    res.status(400).json({ error: error.message || 'AI训练失败' });
+    console.error('AI训练失败:', error);
+    res.status(500).json({ error: error.message || 'AI训练失败' });
   }
 });
 
@@ -596,11 +613,11 @@ router.get('/:gameId/analyze-opponent/:opponentId', authenticateToken, async (re
  *             schema:
  *               type: object
  *               properties:
- *                 message:
+ *                 message: 
  *                   type: string
- *                 gameId:
+ *                 gameId: 
  *                   type: string
- *                 mode:
+ *                 mode: 
  *                   type: string
  *       400:
  *         description: 请求参数错误
@@ -611,15 +628,257 @@ router.get('/:gameId/analyze-opponent/:opponentId', authenticateToken, async (re
 router.post('/:gameId/set-mode', authenticateToken, async (req, res) => {
   try {
     const { gameId } = req.params;
-    const { mode } = req.body;
+    const { style } = req.body;
     // TODO: 实现设置AI模式逻辑
     res.status(200).json({ 
       message: 'AI模式设置成功', 
       gameId,
-      mode
+      style
     });
   } catch (error: any) {
     res.status(400).json({ error: error.message || 'AI模式设置失败' });
+  }
+});
+
+/**
+ * @swagger
+ * /ai/opponents:
+ *   get:
+ *     summary: 获取所有可用的AI对手
+ *     tags: [AI]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 获取AI对手列表成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: 
+ *                   type: boolean
+ *                 opponents: 
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       name:
+ *                         type: string
+ *                       level:
+ *                         type: string
+ *                       playingStyle:
+ *                         type: string
+ *                       bluffFrequency:
+ *                         type: number
+ *                       callFrequency:
+ *                         type: number
+ *                       raiseFrequency:
+ *                         type: number
+ *                       handRange:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *       401:
+ *         description: 未授权
+ */
+// 获取AI对手列表
+router.get('/opponents', authenticateToken, async (req, res) => {
+  try {
+    const opponents = aiService.getAvailableOpponents();
+    res.status(200).json(opponents);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || '获取AI对手列表失败' });
+  }
+});
+
+/**
+ * @swagger
+ * /ai/opponent/{opponentId}/hand:
+ *   get:
+ *     summary: 为AI对手生成手牌
+ *     tags: [AI]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: opponentId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: AI对手ID
+ *     responses:
+ *       200:
+ *         description: 生成AI对手手牌成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: 
+ *                   type: boolean
+ *                 opponentId: 
+ *                   type: string
+ *                 hand: 
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       suit:
+ *                         type: string
+ *                       rank:
+ *                         type: string
+ *       400:
+ *         description: 请求参数错误
+ *       401:
+ *         description: 未授权
+ *       404:
+ *         description: AI对手不存在
+ */
+// 为AI对手生成手牌
+router.get('/opponent/:opponentId/hand', authenticateToken, async (req, res) => {
+  try {
+    const { opponentId } = req.params;
+    const opponent = aiService.getOpponentById(opponentId);
+    
+    if (!opponent) {
+      return res.status(404).json({ error: 'AI对手不存在' });
+    }
+    
+    const hand = aiService.generateAIOpponentHand(opponent);
+    res.status(200).json({ 
+      success: true,
+      opponentId,
+      hand 
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || '生成AI对手手牌失败' });
+  }
+});
+
+/**
+ * @swagger
+ * /ai/opponent/decision:
+ *   post:
+ *     summary: 获取AI对手的决策
+ *     tags: [AI]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               opponentState:
+ *                 type: object
+ *                 properties:
+ *                   opponentId:
+ *                     type: string
+ *                   hand:
+ *                     type: array
+ *                     items:
+ *                       type: object
+ *                       properties:
+ *                         suit:
+ *                           type: string
+ *                         rank:
+ *                           type: string
+ *                   stackSize:
+ *                     type: number
+ *                   betHistory:
+ *                     type: array
+ *                     items:
+ *                       type: object
+ *                       properties:
+ *                         action_type:
+ *                           type: string
+ *                         amount:
+ *                           type: number
+ *                   position:
+ *                     type: number
+ *                   folded:
+ *                     type: boolean
+ *               communityCards:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     suit:
+ *                       type: string
+ *                     rank:
+ *                       type: string
+ *               potSize:
+ *                 type: number
+ *               currentBet:
+ *                 type: number
+ *               minRaise:
+ *                 type: number
+ *     responses:
+ *       200:
+ *         description: 获取AI对手决策成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: 
+ *                   type: boolean
+ *                 decision: 
+ *                   type: object
+ *                   properties:
+ *                     action:
+ *                       type: string
+ *                     amount:
+ *                       type: number
+ *       400:
+ *         description: 请求参数错误
+ *       401:
+ *         description: 未授权
+ */
+// 获取AI对手决策
+router.post('/opponent/decision', authenticateToken, async (req, res) => {
+  try {
+    const { opponentState, communityCards, potSize, currentBet, minRaise } = req.body;
+    
+    if (!opponentState || !communityCards || !potSize || !currentBet || !minRaise) {
+      return res.status(400).json({ error: '请提供完整的请求参数' });
+    }
+    
+    const opponent = aiService.getOpponentById(opponentState.opponentId);
+    if (!opponent) {
+      return res.status(404).json({ error: 'AI对手不存在' });
+    }
+    
+    // 构建完整的AI对手状态
+    const fullOpponentState = {
+      opponent,
+      hand: opponentState.hand,
+      stackSize: opponentState.stackSize,
+      betHistory: opponentState.betHistory,
+      position: opponentState.position,
+      folded: opponentState.folded
+    };
+    
+    const decision = aiService.makeAIDecision(
+      fullOpponentState,
+      communityCards,
+      potSize,
+      currentBet,
+      minRaise
+    );
+    
+    res.status(200).json({
+      opponentId: opponentState.opponentId,
+      action: decision.action,
+      amount: decision.amount,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || '获取AI对手决策失败' });
   }
 });
 

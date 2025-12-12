@@ -4,6 +4,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './config/swagger';
+import { errorHandler, notFoundHandler } from './middlewares/errorHandler';
 
 // 加载环境变量
 dotenv.config();
@@ -19,6 +20,15 @@ const server = http.createServer(app);
 // 基础中间件
 app.use(cors());
 app.use(express.json());
+
+// 导入日志中间件
+import { requestContextMiddleware, apiLoggerMiddleware } from './middlewares/loggerMiddleware';
+
+// 使用请求上下文中间件
+app.use(requestContextMiddleware);
+
+// 使用API日志中间件
+app.use(apiLoggerMiddleware);
 
 // 健康检查端点
 app.get('/ping', (req, res) => {
@@ -52,6 +62,12 @@ const websocketService = new WebSocketService(server);
 
 // 设置WebSocket服务实例供其他模块使用
 setWebSocketService(websocketService);
+
+// 404路由处理
+app.use(notFoundHandler);
+
+// 全局异常处理中间件
+app.use(errorHandler);
 
 // 启动服务器
 const PORT = process.env.PORT || 3000;

@@ -4,17 +4,22 @@ import { UserDAO } from '../userDAO';
 import { RedisCache } from '../../services/redisCache';
 
 export class PostgreSQLUserDAO implements UserDAO {
-  private static readonly TABLE_NAME = 'user_accounts';
+  private static readonly TABLE_NAME = 'users';
   private static readonly CACHE_KEY_PREFIX = 'user:';
 
   async create(entity: Omit<User, 'id' | 'created_at' | 'updated_at'>): Promise<User> {
     const result = await pool.query(
-      `INSERT INTO ${PostgreSQLUserDAO.TABLE_NAME} (username, email, phone, avatar, chips)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [entity.username, entity.email, entity.phone, entity.avatar, entity.chips]
+      `INSERT INTO ${PostgreSQLUserDAO.TABLE_NAME} (username, password_hash, email, phone, avatar, chips)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [entity.username, entity.password, entity.email, entity.phone, entity.avatar, entity.chips]
     );
 
-    const user = result.rows[0];
+    const userRow = result.rows[0];
+    // 映射字段名：password_hash -> password
+    const user: User = {
+      ...userRow,
+      password: userRow.password_hash
+    };
     // 缓存用户信息
     await RedisCache.set(`${PostgreSQLUserDAO.CACHE_KEY_PREFIX}${user.id}`, user, 3600);
     await RedisCache.set(`${PostgreSQLUserDAO.CACHE_KEY_PREFIX}username:${user.username}`, user, 3600);
@@ -35,7 +40,7 @@ export class PostgreSQLUserDAO implements UserDAO {
     }
 
     const result = await pool.query(
-      `SELECT * FROM ${PostgreSQLUserDAO.TABLE_NAME} WHERE user_id = $1`,
+      `SELECT * FROM ${PostgreSQLUserDAO.TABLE_NAME} WHERE id = $1`,
       [id]
     );
 
@@ -43,7 +48,12 @@ export class PostgreSQLUserDAO implements UserDAO {
       return null;
     }
 
-    const user = result.rows[0];
+    const userRow = result.rows[0];
+    // 映射字段名：password_hash -> password
+    const user: User = {
+      ...userRow,
+      password: userRow.password_hash
+    };
     // 缓存用户信息
     await RedisCache.set(`${PostgreSQLUserDAO.CACHE_KEY_PREFIX}${user.id}`, user, 3600);
     await RedisCache.set(`${PostgreSQLUserDAO.CACHE_KEY_PREFIX}username:${user.username}`, user, 3600);
@@ -59,14 +69,14 @@ export class PostgreSQLUserDAO implements UserDAO {
   async update(id: string, entity: Partial<User>): Promise<User | null> {
     // 构建更新语句
     const updateFields = Object.entries(entity)
-      .map(([key, value], index) => `${key} = $${index + 2}`)
+      .map(([key, value], index) => `${key === 'password' ? 'password_hash' : key} = $${index + 2}`)
       .join(', ');
 
     const values = [...Object.values(entity), id];
 
     const result = await pool.query(
       `UPDATE ${PostgreSQLUserDAO.TABLE_NAME} SET ${updateFields}, updated_at = NOW()
-       WHERE user_id = $${values.length} RETURNING *`,
+       WHERE id = $${values.length} RETURNING *`,
       values
     );
 
@@ -74,7 +84,12 @@ export class PostgreSQLUserDAO implements UserDAO {
       return null;
     }
 
-    const user = result.rows[0];
+    const userRow = result.rows[0];
+    // 映射字段名：password_hash -> password
+    const user: User = {
+      ...userRow,
+      password: userRow.password_hash
+    };
     // 更新缓存
     await RedisCache.set(`${PostgreSQLUserDAO.CACHE_KEY_PREFIX}${user.id}`, user, 3600);
     await RedisCache.set(`${PostgreSQLUserDAO.CACHE_KEY_PREFIX}username:${user.username}`, user, 3600);
@@ -94,7 +109,7 @@ export class PostgreSQLUserDAO implements UserDAO {
     }
 
     const result = await pool.query(
-      `DELETE FROM ${PostgreSQLUserDAO.TABLE_NAME} WHERE user_id = $1`,
+      `DELETE FROM ${PostgreSQLUserDAO.TABLE_NAME} WHERE id = $1`,
       [id]
     );
 
@@ -136,7 +151,12 @@ export class PostgreSQLUserDAO implements UserDAO {
       return null;
     }
 
-    const user = result.rows[0];
+    const userRow = result.rows[0];
+    // 映射字段名：password_hash -> password
+    const user: User = {
+      ...userRow,
+      password: userRow.password_hash
+    };
     // 缓存用户信息
     await RedisCache.set(`${PostgreSQLUserDAO.CACHE_KEY_PREFIX}${user.id}`, user, 3600);
     await RedisCache.set(`${PostgreSQLUserDAO.CACHE_KEY_PREFIX}username:${user.username}`, user, 3600);
@@ -159,7 +179,12 @@ export class PostgreSQLUserDAO implements UserDAO {
       return null;
     }
 
-    const user = result.rows[0];
+    const userRow = result.rows[0];
+    // 映射字段名：password_hash -> password
+    const user: User = {
+      ...userRow,
+      password: userRow.password_hash
+    };
     // 缓存用户信息
     await RedisCache.set(`${PostgreSQLUserDAO.CACHE_KEY_PREFIX}${user.id}`, user, 3600);
     await RedisCache.set(`${PostgreSQLUserDAO.CACHE_KEY_PREFIX}email:${user.email}`, user, 3600);
@@ -182,7 +207,12 @@ export class PostgreSQLUserDAO implements UserDAO {
       return null;
     }
 
-    const user = result.rows[0];
+    const userRow = result.rows[0];
+    // 映射字段名：password_hash -> password
+    const user: User = {
+      ...userRow,
+      password: userRow.password_hash
+    };
     // 缓存用户信息
     await RedisCache.set(`${PostgreSQLUserDAO.CACHE_KEY_PREFIX}${user.id}`, user, 3600);
     await RedisCache.set(`${PostgreSQLUserDAO.CACHE_KEY_PREFIX}phone:${user.phone}`, user, 3600);
@@ -193,12 +223,17 @@ export class PostgreSQLUserDAO implements UserDAO {
     const { username, password, email, phone } = input;
     
     const result = await pool.query(
-      `INSERT INTO ${PostgreSQLUserDAO.TABLE_NAME} (username, password, email, phone, chips)
+      `INSERT INTO ${PostgreSQLUserDAO.TABLE_NAME} (username, password_hash, email, phone, chips)
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
       [username, password, email, phone, 10000] // 默认初始筹码为10000
     );
 
-    const user = result.rows[0];
+    const userRow = result.rows[0];
+    // 映射字段名：password_hash -> password
+    const user: User = {
+      ...userRow,
+      password: userRow.password_hash
+    };
     // 缓存用户信息
     await RedisCache.set(`${PostgreSQLUserDAO.CACHE_KEY_PREFIX}${user.id}`, user, 3600);
     await RedisCache.set(`${PostgreSQLUserDAO.CACHE_KEY_PREFIX}username:${user.username}`, user, 3600);
@@ -214,7 +249,7 @@ export class PostgreSQLUserDAO implements UserDAO {
   async updateChips(userId: string, chips: number): Promise<User | null> {
     const result = await pool.query(
       `UPDATE ${PostgreSQLUserDAO.TABLE_NAME} SET chips = $1, updated_at = NOW()
-       WHERE user_id = $2 RETURNING *`,
+       WHERE id = $2 RETURNING *`,
       [chips, userId]
     );
 
